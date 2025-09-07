@@ -1,0 +1,13 @@
+torch~=2.7.1
+torchaudio~=2.7.1
+torchvision~=0.22.1
+tornado~=6.5.2
+tqdm~=4.67.1
+numpy~=2.1.2
+pandas~=2.3.2
+matplotlib~=3.10.6
+gradio~=5.44.1
+pillow~=11.0.0
+PyYAML~=6.0.2
+ruff~=0.12.12
+

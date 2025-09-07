@@ -1,0 +1,65 @@
+
+# Name for this GitHub Actions workflow.
+# This name will appear in the "Actions" tab of your GitHub repository.
+name: ci_workflows
+
+# This section defines when the workflow will run.
+on:
+  # Run on every push to the 'main' branch.
+  push:
+    branches: [ "main" ]
+  # Also run on every pull request that targets the 'main' branch.
+  pull_request:
+    branches: [ "main" ]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel.
+jobs:
+  # The name of the job. You can name it anything.
+  build-and-test:
+    # The type of virtual machine to run the job on.
+    # 'ubuntu-latest' is a standard and recommended choice for most Python projects.
+    runs-on: ubuntu-latest
+
+    # A job is a sequence of steps.
+    steps:
+      # Step 1: Check out your repository's code.
+      # This action downloads your source code into the runner machine
+      # so the workflow can access it.
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up the Python environment.
+      # This action sets up a specific version of Python.
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          # IMPORTANT: Change this to the Python version you are using locally.
+          # e.g., "3.9", "3.10", "3.11"
+          python-version: "3.10"
+
+      # Step 3: Install all necessary dependencies.
+      # This step first upgrades pip, then installs the code quality tools
+      # (Black and Flake8), and finally installs all project-specific
+      # libraries from your requirements.txt file.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black flake8
+          pip install -r requirements.txt
+
+      # Step 4: Check code formatting with Black.
+      # The '--check' flag makes Black report files that are not formatted
+      # correctly without actually modifying them. The workflow will fail
+      # if any file needs reformatting.
+      - name: Check formatting with Black
+        run: |
+          black --check .
+
+      # Step 5: Lint code with Flake8 to find potential errors.
+      # Flake8 checks for style guide violations (PEP8) and other common errors.
+      # --count: Prints the total number of errors.
+      # --max-line-length=88: Set to match Black's default for consistency.
+      # --statistics: Shows how many times each error type occurred.
+      - name: Lint with Flake8
+        run: |
+          flake8 . --count --max-line-length=88 --statistics
