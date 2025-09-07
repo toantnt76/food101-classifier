@@ -2,9 +2,9 @@
 /.venv/
 env/
 .env
-/data/
-/saved_models/
-.ipynb_checkpoints/
+#/data/
+#/saved_models/
+#.ipynb_checkpoints/
 /.vscode/
 /.idea/
 /logs/
