@@ -1,0 +1,29 @@
+# Configuration for Phase 1: Comparing 4 models on a data subset
+
+# 1. Data parameters
+data_params:
+  # Path to the preprocessed training subset directory
+  train_dir: "data/processed/custom_data_20_percent/train" 
+  # Path to the preprocessed testing subset directory
+  test_dir: "data/processed/custom_data_20_percent/test"
+  batch_size: 32
+  num_classes: 10
+  
+# 2. List of models to compare
+model_configs:
+  - name: "efficientnet_b2"
+    params: {} # Can add special parameters for the model if needed
+  - name: "convnext_tiny"
+    params: {}
+  - name: "mobilenet_v2"
+    params: {}
+  - name: "vit_b_16"
+    params: {}
+
+# 3. General training parameters
+training_params:
+  epochs: 10            # Number of epochs to train each model
+  loss_function: "CrossEntropyLoss"
+  optimizer:
+    name: "Adam"
+    lr: 0.001

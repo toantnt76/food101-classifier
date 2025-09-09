@@ -1,58 +1,65 @@
-"""
-Contains PyTorch model code to instantiate a TinyVGG model.
-"""
 import torch
-from torch import nn
+import torch.nn as nn
+import torchvision.models
 
 
-class TinyVGG(nn.Module):
-    """Creates the TinyVGG architecture.
-
-    Replicates the TinyVGG architecture from the CNN explainer website in PyTorch.
-    See the original architecture here: https://poloclub.github.io/cnn-explainer/
+def create_model(model_name: str, num_classes: int):
+    """
+    Creates an image classification model based on the provided name.
 
     Args:
-    input_shape: An integer indicating number of input channels.
-    hidden_units: An integer indicating number of hidden units between layers.
-    output_shape: An integer indicating number of output units.
+        model_name (str): The name of the model (e.g., 'efficientnet_b2').
+        num_classes (int): The number of output classes.
+        pretrained (bool): True to use weights pre-trained on ImageNet.
+
+    Returns:
+        torch.nn.Module: The initialized model.
     """
+    model = None
 
-    def __init__(self, input_shape: int, hidden_units: int, output_shape: int) -> None:
-        super().__init__()
-        self.conv_block_1 = nn.Sequential(
-            nn.Conv2d(in_channels=input_shape,
-                      out_channels=hidden_units,
-                      kernel_size=3,
-                      stride=1,
-                      padding=0),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=hidden_units,
-                      out_channels=hidden_units,
-                      kernel_size=3,
-                      stride=1,
-                      padding=0),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2,
-                         stride=2)
-        )
-        self.conv_block_2 = nn.Sequential(
-            nn.Conv2d(hidden_units, hidden_units, kernel_size=3, padding=0),
-            nn.ReLU(),
-            nn.Conv2d(hidden_units, hidden_units, kernel_size=3, padding=0),
-            nn.ReLU(),
-            nn.MaxPool2d(2)
-        )
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            # Where did this in_features shape come from?
-            # It's because each layer of our network compresses and changes the shape of our inputs data.
-            nn.Linear(in_features=hidden_units*13*13,
-                      out_features=output_shape)
-        )
+    if model_name == 'efficientnet_b2':
+        weights = torchvision.models.EfficientNet_B2_Weights.DEFAULT
+        auto_transforms = weights.transforms()
+        model = torchvision.models.efficientnet_b2(weights=weights)
+        # Freeze the feature extractor layers
+        for param in model.features.parameters():
+            param.requires_grad = False
+        # Replace the classifier layer
+        in_features = model.classifier[1].in_features
+        model.classifier[1] = nn.Linear(in_features, num_classes)
 
-    def forward(self, x: torch.Tensor):
-        x = self.conv_block_1(x)
-        x = self.conv_block_2(x)
-        x = self.classifier(x)
-        return x
-        # return self.classifier(self.block_2(self.block_1(x))) # <- leverage the benefits of operator fusion
+    elif model_name == 'convnext_tiny':
+        weights = torchvision.models.ConvNeXt_Tiny_Weights.DEFAULT
+        auto_transforms = weights.transforms()
+        model = torchvision.models.convnext_tiny(weights=weights)
+        # Freeze the feature extractor layers
+        for param in model.features.parameters():
+            param.requires_grad = False
+        in_features = model.classifier[2].in_features
+        model.classifier[2] = nn.Linear(in_features, num_classes)
+
+    elif model_name == 'mobilenet_v2':
+        weights = torchvision.models.MobileNet_V2_Weights.DEFAULT
+        auto_transforms = weights.transforms()
+        model = torchvision.models.mobilenet_v2(weights=weights)
+        # Freeze the feature extractor layers
+        for param in model.features.parameters():
+            param.requires_grad = False
+        in_features = model.classifier[1].in_features
+        model.classifier[1] = nn.Linear(in_features, num_classes)
+
+    elif model_name == 'vit_b_16':
+        weights = torchvision.models.ViT_B_16_Weights.DEFAULT
+        auto_transforms = weights.transforms()
+        model = torchvision.models.vit_b_16(weights=weights)
+        # For ViT, the layers are not in 'features'
+        for param in model.parameters():
+            param.requires_grad = False
+        # Replace the heads layer (ViT's classifier)
+        in_features = model.heads.head.in_features
+        model.heads.head = nn.Linear(in_features, num_classes)
+
+    else:
+        raise ValueError(f"Model name '{model_name}' is not supported.")
+
+    return model, auto_transforms

@@ -6,6 +6,7 @@ import torch
 
 from tqdm.auto import tqdm
 from typing import Dict, List, Tuple
+from torch.utils.tensorboard import SummaryWriter
 
 
 def train_step(model: torch.nn.Module,
@@ -127,7 +128,8 @@ def train(model: torch.nn.Module,
           optimizer: torch.optim.Optimizer,
           loss_fn: torch.nn.Module,
           epochs: int,
-          device: torch.device) -> Dict[str, List]:
+          device: torch.device,
+          writer: torch.utils.tensorboard.writer.SummaryWriter) -> Dict[str, List]:
     """Trains and tests a PyTorch model.
 
     Passes a target PyTorch models through train_step() and test_step()
@@ -135,6 +137,8 @@ def train(model: torch.nn.Module,
     in the same epoch loop.
 
     Calculates, prints and stores evaluation metrics throughout.
+
+    Stores metrics to specified writer log_dir if present.
 
     Args:
     model: A PyTorch model to be trained and tested.
@@ -144,6 +148,7 @@ def train(model: torch.nn.Module,
     loss_fn: A PyTorch loss function to calculate loss on both datasets.
     epochs: An integer indicating how many epochs to train for.
     device: A target device to compute on (e.g. "cuda" or "cpu").
+    writer: A SummaryWriter() instance to log model results to.
 
     Returns:
     A dictionary of training and testing loss as well as training and
@@ -195,6 +200,26 @@ def train(model: torch.nn.Module,
         results["train_acc"].append(train_acc)
         results["test_loss"].append(test_loss)
         results["test_acc"].append(test_acc)
+
+        ### New: Use the writer parameter to track experiments ###
+        # See if there's a writer, if so, log to it
+        if writer:
+            # Add results to SummaryWriter
+            writer.add_scalars(main_tag="Loss",
+                               tag_scalar_dict={"train_loss": train_loss,
+                                                "test_loss": test_loss},
+                               global_step=epoch)
+            writer.add_scalars(main_tag="Accuracy",
+                               tag_scalar_dict={"train_acc": train_acc,
+                                                "test_acc": test_acc},
+                               global_step=epoch)
+        else:
+            pass
+    # Close the writer
+    if writer:
+        writer.close()
+        print(f"[INFO] TensorBoard writer closed.")
+    ### End new ###
 
     # Return the filled results at the end of the epochs
     return results
