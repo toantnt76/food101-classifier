@@ -8,6 +8,9 @@ from typing import List
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+
+from adjustText import adjust_text
 
 import random
 from PIL import Image
@@ -174,8 +177,89 @@ def plot_loss_curves(results):
     plt.legend()
 
 
-# Pred and plot image function from notebook 04
-# See creation: https://www.learnpytorch.io/04_pytorch_custom_datasets/#113-putting-custom-image-prediction-together-building-a-function
+def plot_model_comparison_curves_enhanced(model_results: dict, acc_threshold=0.85):
+    """Plots the Test Loss and Test Accuracy curves for multiple models for comparison.
+
+    Args:
+        model_results (dict): A dictionary where keys are model names and values
+                              are Pandas DataFrames containing training results.
+    """
+    # --- 1. SETUP & DATA PREPARATION ---
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(22, 9))
+    colors = plt.cm.get_cmap('tab10', len(model_results))
+    summary_data = []
+
+    # NEW: Determine the maximum number of epochs from all results for consistent ticks
+    max_epochs = max(len(df) for df in model_results.values())
+
+    # --- 2. PLOTTING LOOP ---
+    for i, (model_name, results_df) in enumerate(model_results.items()):
+        epochs = results_df["epoch"] + 1
+        color = colors(i)
+        ax1.plot(epochs, results_df["test_loss"],
+                 label=model_name, linewidth=2.5, color=color)
+        ax2.plot(epochs, results_df["test_acc"],
+                 label=model_name, linewidth=2.5, color=color)
+
+        # Gather data for the summary table
+        summary_data.append({
+            "Model": model_name,
+            "Lowest Test Loss": results_df["test_loss"].min(),
+            "Epoch (Loss)": results_df["test_loss"].idxmin() + 1,
+            "Best Test Acc (%)": results_df["test_acc"].max() * 100,
+            "Epoch (Acc)": results_df["test_acc"].idxmax() + 1
+        })
+
+    # --- 3. AESTHETIC ENHANCEMENTS & X-TICK FIX ---
+    for ax in [ax1, ax2]:
+        ax.set_xlabel("Epochs", fontsize=14)
+        ax.legend(fontsize=12)
+        ax.grid(True)
+        # NEW: Fix for x-axis ticks to ensure they are integers
+        ax.set_xticks(np.arange(1, max_epochs + 1, 1))
+
+    ax1.set_title("Test Loss Comparison", fontsize=18)
+    ax1.set_ylabel("Test Loss", fontsize=14)
+    ax2.set_title("Test Accuracy Comparison", fontsize=18)
+    ax2.set_ylabel("Test Accuracy", fontsize=14)
+
+    if acc_threshold:
+        ax2.axhline(y=acc_threshold, color='grey', linestyle='--',
+                    linewidth=2, label=f'{acc_threshold*100:.1f}% Threshold')
+        ax2.legend(fontsize=12)
+
+    # --- 4. ADVANCED ANNOTATIONS ---
+    texts_acc = []
+    for model_name, results_df in model_results.items():
+        max_acc_val = results_df["test_acc"].max()
+        max_acc_epoch = results_df["test_acc"].idxmax() + 1
+        texts_acc.append(ax2.text(max_acc_epoch, max_acc_val,
+                         f"{max_acc_val:.3f}", fontsize=12))
+    adjust_text(texts_acc, ax=ax2, arrowprops=dict(
+        arrowstyle="->", color='black', lw=0.5))
+
+    # --- 5. FINAL TOUCHES ---
+    fig.suptitle("Phase 1: Model Performance Showdown", fontsize=24)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.show()
+
+    # --- 6. DISPLAY ENHANCED SUMMARY TABLE ---
+    summary_df = pd.DataFrame(summary_data).set_index("Model")
+
+    # NEW: Define a highlighting function with a condition
+    def highlight_above_threshold(series, threshold, color='lightgreen'):
+        return [f'background-color: {color}' if val > threshold else '' for val in series]
+
+    print("="*80)
+    print("Performance Summary Table")
+    print("="*80)
+
+    # NEW: Apply the conditional highlighting
+    display(summary_df.style.apply(highlight_above_threshold,
+                                   threshold=acc_threshold * 100,
+                                   subset=['Best Test Acc (%)'])
+            .format("{:.4f}", subset=['Lowest Test Loss'])
+            .format("{:.2f}%", subset=['Best Test Acc (%)']))
 
 
 def pred_and_plot_image(
