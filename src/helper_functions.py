@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from adjustText import adjust_text
+from tqdm.auto import tqdm
 
 import random
 from PIL import Image
@@ -177,7 +178,7 @@ def plot_loss_curves(results):
     plt.legend()
 
 
-def plot_model_comparison_curves_enhanced(model_results: dict, acc_threshold=0.85):
+def plot_model_comparison_curves_enhanced(model_results: dict, acc_threshold=0.80):
     """Plots the Test Loss and Test Accuracy curves for multiple models for comparison.
 
     Args:
@@ -419,3 +420,22 @@ def plot_transformed_images(image_paths, transform, n=3, seed=42):
             ax[1].axis("off")
 
             fig.suptitle(f"Class: {image_path.parent.stem}", fontsize=16)
+
+
+# --- Function to download a file with a progress bar ---
+def download_model(url: str, save_path: Path):
+    print(f"Downloading file from: {url}")
+    response = requests.get(url, stream=True)
+    total_size = int(response.headers.get('content-length', 0))
+
+    with open(save_path, "wb") as f, tqdm(
+        desc=save_path.name,
+        total=total_size,
+        unit='iB',
+        unit_scale=True,
+        unit_divisor=1024,
+    ) as bar:
+        for data in response.iter_content(chunk_size=1024):
+            size = f.write(data)
+            bar.update(size)
+    print(f"File saved to: {save_path}")

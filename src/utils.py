@@ -288,7 +288,7 @@ def analyze_and_visualize_efficiency(model_names: list,
     return efficiency_df
 
 
-def plot_tradeoff_scatter(decision_df: pd.DataFrame, acc_threshold=85, speed_threshold_ms=33.33):
+def plot_tradeoff_scatter(decision_df: pd.DataFrame, acc_threshold=80, speed_threshold_ms=33.33):
     """
     Creates a final, highly polished trade-off scatter plot.
     Features a correctly centered and rotated "Optimal Zone" label.
