@@ -288,7 +288,7 @@ def analyze_and_visualize_efficiency(model_names: list,
     return efficiency_df
 
 
-def plot_tradeoff_scatter(decision_df: pd.DataFrame, acc_threshold=80, speed_threshold_ms=33.33):
+def plot_tradeoff_scatter(decision_df: pd.DataFrame, acc_threshold=85, speed_threshold_ms=33.33):
     """
     Creates a final, highly polished trade-off scatter plot.
     Features a correctly centered and rotated "Optimal Zone" label.
@@ -388,3 +388,53 @@ def plot_tradeoff_scatter(decision_df: pd.DataFrame, acc_threshold=80, speed_thr
     ax.set_ylim(y_min, y_max)
 
     plt.show()
+
+
+def count_loaded_model_parameters(model: torch.nn.Module) -> dict:
+    """Counts parameters for a model instance that is already in memory."""
+    total_params = sum(p.numel() for p in model.parameters())
+    model_size_mb = (total_params * 4) / (1024**2)
+    return {"total_params": total_params, "size_mb": model_size_mb}
+
+
+def benchmark_loaded_model_speed(model: torch.nn.Module,
+                                 image_processor,  # Can be a transform or processor
+                                 device: str = "cpu",
+                                 iterations: int = 100) -> float:
+    """Measures inference speed for a model instance that is already in memory."""
+
+    model.to(device)
+    model.eval()
+
+    dummy_pil_image = Image.new('RGB', (300, 300))
+
+    # Handle both transformers processor and torchvision transform
+    if "transformers" in str(type(image_processor)):
+        dummy_input = image_processor(dummy_pil_image, return_tensors="pt")[
+            'pixel_values'].to(device)
+    else:  # torchvision.transforms.Compose
+        dummy_input = image_processor(dummy_pil_image).unsqueeze(0).to(device)
+
+    # Warm-up runs
+    with torch.inference_mode():
+        for _ in range(10):
+            # Transformers models can return a dict, we might need the logits
+            output = model(dummy_input)
+            if isinstance(output, dict):
+                _ = output.logits
+            else:
+                _ = output
+
+    # Actual benchmark loop
+    start_time = time.perf_counter()
+    with torch.inference_mode():
+        for _ in range(iterations):
+            output = model(dummy_input)
+            if isinstance(output, dict):
+                _ = output.logits
+            else:
+                _ = output
+    end_time = time.perf_counter()
+
+    avg_time_ms = ((end_time - start_time) / iterations) * 1000
+    return avg_time_ms

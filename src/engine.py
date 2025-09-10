@@ -8,6 +8,8 @@ from tqdm.auto import tqdm
 from typing import Dict, List, Tuple
 from torch.utils.tensorboard import SummaryWriter
 
+import json
+
 
 def train_step(model: torch.nn.Module,
                dataloader: torch.utils.data.DataLoader,
@@ -223,3 +225,66 @@ def train(model: torch.nn.Module,
 
     # Return the filled results at the end of the epochs
     return results
+
+
+# --- Evaluation Loop to Calculate Accuracy ---
+def evaluate_model(model: torch.nn.Module,
+                   dataloader: torch.utils.data.DataLoader,
+                   device: str,
+                   label_map_path: str,
+                   verbose: bool = False) -> float:  # NEW: Add verbose parameter
+    """
+    Evaluates a pre-trained model, robustly handling any label mismatches.
+    If verbose is True, it prints accuracy updates during evaluation.
+    """
+    model.eval()
+    correct_preds, total_preds = 0, 0
+
+    # ... (code tải và tạo translation_map giữ nguyên)
+    # --- 1. Load the dictionaries for translation ---
+    with open(label_map_path, 'r') as f:
+        standard_idx_to_label = json.load(f)
+    standard_label_to_idx = {v: int(k)
+                             for k, v in standard_idx_to_label.items()}
+
+    # --- 2. Get the model's label map and ensure keys are integers ---
+    model_id_to_label = {int(k): v for k, v in model.config.id2label.items()}
+
+    # --- 3. Create the definitive "translator" map ---
+    translation_map = {
+        model_idx: standard_label_to_idx.get(model_label)
+        for model_idx, model_label in model_id_to_label.items()
+    }
+
+    # --- 4. Run evaluation loop ---
+    # Wrap the tqdm iterator
+    pbar = tqdm(dataloader, desc="Evaluating Accuracy")
+
+    with torch.inference_mode():
+        for i, batch in enumerate(pbar):  # Use enumerate to track batch index
+            inputs, labels = batch[0].to(device), batch[1].to(device)
+
+            logits = model(inputs).logits
+            pred_labels_model_space = torch.argmax(logits, dim=1)
+
+            pred_labels_standard_space = torch.tensor(
+                [translation_map.get(label.item(), -1)
+                 for label in pred_labels_model_space],
+                device=device,
+                dtype=torch.long
+            )
+
+            correct_preds += (pred_labels_standard_space ==
+                              labels).sum().item()
+            total_preds += len(labels)
+
+            # --- NEW: Verbose printing block ---
+            if verbose and (i + 1) % 50 == 0:  # Print every 50 batches
+                current_acc = (correct_preds / total_preds) * 100
+                # Use tqdm's set_description to print without breaking the progress bar
+                pbar.set_description(
+                    f"Evaluating Accuracy (Batch {i+1}/{len(dataloader)} | Current Acc: {current_acc:.2f}%)")
+            # --- END OF NEW SECTION ---
+
+    accuracy = (correct_preds / total_preds) * 100
+    return accuracy

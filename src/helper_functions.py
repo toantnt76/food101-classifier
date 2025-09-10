@@ -178,7 +178,7 @@ def plot_loss_curves(results):
     plt.legend()
 
 
-def plot_model_comparison_curves_enhanced(model_results: dict, acc_threshold=0.80):
+def plot_model_comparison_curves_enhanced(model_results: dict, acc_threshold=0.85):
     """Plots the Test Loss and Test Accuracy curves for multiple models for comparison.
 
     Args:
